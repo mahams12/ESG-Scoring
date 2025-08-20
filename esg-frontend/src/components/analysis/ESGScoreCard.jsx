@@ -1,174 +1,166 @@
 import React from 'react';
-import { GlobeAltIcon, UsersIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
-import { esgService } from '../../services/esgService';
+import { TrendingUp, TrendingDown, Minus, Leaf, Users, Shield } from 'lucide-react';
+import ESGReportDownload from './ESGReportDownload';
 
-const ESGScoreCard = ({ scores }) => {
+const ESGScoreCard = ({ 
+  company, 
+  esgData, 
+  industryBenchmark = {}, 
+  className = '' 
+}) => {
+  const getScoreColor = (score) => {
+    if (score >= 70) return 'text-green-400';
+    if (score >= 50) return 'text-yellow-400';
+    return 'text-red-400';
+  };
+
+  const getScoreBackground = (score) => {
+    if (score >= 70) return 'bg-green-500/10 border-green-500/20';
+    if (score >= 50) return 'bg-yellow-500/10 border-yellow-500/20';
+    return 'bg-red-500/10 border-red-500/20';
+  };
+
+  const getTrendIcon = (current, benchmark) => {
+    if (current > benchmark + 5) return <TrendingUp className="w-4 h-4 text-green-400" />;
+    if (current < benchmark - 5) return <TrendingDown className="w-4 h-4 text-red-400" />;
+    return <Minus className="w-4 h-4 text-yellow-400" />;
+  };
+
   const categories = [
     {
       name: 'Environmental',
-      score: scores.environmental,
-      icon: GlobeAltIcon, // Changed from LeafIcon
-      color: 'bg-green-500',
-      description: 'Climate impact, resource usage, waste management'
+      icon: Leaf,
+      score: esgData?.environmental || 0,
+      benchmark: industryBenchmark?.environmental || 0,
+      description: 'Climate impact, resource use, pollution'
     },
     {
       name: 'Social',
-      score: scores.social,
-      icon: UsersIcon,
-      color: 'bg-blue-500',
-      description: 'Employee relations, community impact, human rights'
+      icon: Users,
+      score: esgData?.social || 0,
+      benchmark: industryBenchmark?.social || 0,
+      description: 'Labor practices, community relations, diversity'
     },
     {
       name: 'Governance',
-      score: scores.governance,
-      icon: ShieldCheckIcon,
-      color: 'bg-purple-500',
-      description: 'Board structure, executive compensation, transparency'
+      icon: Shield,
+      score: esgData?.governance || 0,
+      benchmark: industryBenchmark?.governance || 0,
+      description: 'Board structure, ethics, transparency'
     }
   ];
 
-  // Rest of the component remains the same...
-  const CircularProgress = ({ score, size = 120 }) => {
-    const radius = size / 2 - 10;
-    const circumference = 2 * Math.PI * radius;
-    const strokeDasharray = circumference;
-    const strokeDashoffset = circumference - (score / 100) * circumference;
-
-    return (
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg
-          className="transform -rotate-90"
-          width={size}
-          height={size}
-        >
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            stroke="currentColor"
-            strokeWidth="8"
-            fill="transparent"
-            className="text-dark-700"
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            stroke="currentColor"
-            strokeWidth="8"
-            fill="transparent"
-            strokeDasharray={strokeDasharray}
-            strokeDashoffset={strokeDashoffset}
-            className={esgService.getScoreColor(score)}
-            strokeLinecap="round"
-            style={{
-              transition: 'stroke-dashoffset 1s ease-in-out'
-            }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold text-white">
-            {esgService.formatScore(score)}
-          </span>
-          <span className="text-xs text-dark-400">Score</span>
-        </div>
-      </div>
-    );
-  };
+  const overallScore = esgData?.overall_score || 0;
+  const overallBenchmark = industryBenchmark?.overall || 0;
 
   return (
-    <div className="card p-6">
-      <h3 className="text-xl font-semibold text-white mb-6">ESG Scorecard</h3>
-      
-      {/* Overall Score */}
-      <div className="flex items-center justify-between mb-8 p-6 bg-dark-900 rounded-xl">
-        <div className="flex-1">
-          <h4 className="text-lg font-medium text-white mb-2">Overall ESG Score</h4>
-          <div className="flex items-center space-x-4">
-            <span className={`text-3xl font-bold ${esgService.getScoreColor(scores.overall)}`}>
-              {esgService.formatScore(scores.overall)}
-            </span>
-            <span className={`text-xl font-semibold px-3 py-1 rounded-lg border ${esgService.getScoreColor(scores.overall)}`}>
-              {esgService.getScoreGrade(scores.overall)}
-            </span>
-          </div>
-          <p className="text-sm text-dark-400 mt-2">
-            Excellent ESG performance - top quartile in industry
+    <div className={`bg-dark-800 border border-dark-700 rounded-xl p-6 ${className}`}>
+      {/* Header with Company Info and Download */}
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-white mb-2">ESG Score Analysis</h2>
+          <p className="text-dark-400">
+            {company?.name} ({company?.ticker}) • {company?.industry}
           </p>
         </div>
-        <CircularProgress score={scores.overall} />
+        
+        {/* Download Button */}
+        <ESGReportDownload 
+          ticker={company?.ticker}
+          companyName={company?.name}
+        />
       </div>
 
-      {/* Individual Categories */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {categories.map((category, index) => {
+      {/* Overall Score */}
+      <div className={`p-6 rounded-xl border mb-6 ${getScoreBackground(overallScore)}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">Overall ESG Score</h3>
+            <div className="flex items-center space-x-2">
+              <span className={`text-3xl font-bold ${getScoreColor(overallScore)}`}>
+                {overallScore}
+              </span>
+              <span className="text-dark-400">/100</span>
+              {getTrendIcon(overallScore, overallBenchmark)}
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-dark-400">Industry Average</p>
+            <p className="text-xl font-semibold text-dark-300">{overallBenchmark}</p>
+          </div>
+        </div>
+        
+        {/* Risk Level */}
+        <div className="mt-4">
+          <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
+            overallScore >= 70 ? 'bg-green-500/20 text-green-400' :
+            overallScore >= 50 ? 'bg-yellow-500/20 text-yellow-400' :
+            'bg-red-500/20 text-red-400'
+          }`}>
+            {overallScore >= 70 ? 'Low Risk' : overallScore >= 50 ? 'Medium Risk' : 'High Risk'}
+          </span>
+        </div>
+      </div>
+
+      {/* Category Breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {categories.map((category) => {
           const Icon = category.icon;
+          
           return (
-            <div 
-              key={category.name} 
-              className="bg-dark-900 rounded-xl p-6 hover:bg-dark-850 transition-colors duration-200"
-              style={{ animationDelay: `${index * 150}ms` }}
+            <div
+              key={category.name}
+              className="bg-dark-700 border border-dark-600 rounded-lg p-4 hover:border-dark-500 transition-colors"
             >
-              <div className="flex items-center space-x-3 mb-4">
-                <div className={`w-10 h-10 ${category.color} rounded-lg flex items-center justify-center`}>
-                  <Icon className="w-5 h-5 text-white" />
+              <div className="flex items-center space-x-3 mb-3">
+                <div className={`p-2 rounded-lg ${getScoreBackground(category.score)}`}>
+                  <Icon className="w-5 h-5" />
                 </div>
-                <h5 className="font-medium text-white">{category.name}</h5>
+                <h4 className="font-medium text-white">{category.name}</h4>
               </div>
               
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`text-2xl font-bold ${esgService.getScoreColor(category.score)}`}>
-                    {esgService.formatScore(category.score)}
-                  </span>
-                  <span className="text-sm text-dark-400">
-                    {esgService.getScoreGrade(category.score)}
-                  </span>
-                </div>
-                
-                {/* Progress Bar */}
-                <div className="w-full bg-dark-700 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full transition-all duration-1000 ease-out ${
-                      category.score >= 85 ? 'bg-success-500' :
-                      category.score >= 70 ? 'bg-success-600' :
-                      category.score >= 50 ? 'bg-warning-500' : 'bg-danger-500'
-                    }`}
-                    style={{ 
-                      width: `${category.score}%`,
-                      transitionDelay: `${index * 200}ms`
-                    }}
-                  />
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-2xl font-bold ${getScoreColor(category.score)}`}>
+                  {category.score}
+                </span>
+                <div className="flex items-center space-x-1">
+                  {getTrendIcon(category.score, category.benchmark)}
+                  <span className="text-sm text-dark-400">vs {category.benchmark}</span>
                 </div>
               </div>
               
-              <p className="text-xs text-dark-400 leading-relaxed">
+              <p className="text-xs text-dark-500">
                 {category.description}
               </p>
+              
+              {/* Progress Bar */}
+              <div className="mt-3 w-full bg-dark-600 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all ${
+                    category.score >= 70 ? 'bg-green-500' :
+                    category.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${category.score}%` }}
+                />
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* Score Breakdown */}
-      <div className="mt-8 p-4 bg-dark-900 rounded-xl">
-        <h6 className="font-medium text-white mb-3">Score Breakdown</h6>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex justify-between">
-            <span className="text-dark-400">Environmental Weight:</span>
-            <span className="text-white">35%</span>
+      {/* Quick Actions */}
+      <div className="mt-6 pt-6 border-t border-dark-700">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-dark-400">
+            Last updated: {new Date().toLocaleDateString()}
           </div>
-          <div className="flex justify-between">
-            <span className="text-dark-400">Social Weight:</span>
-            <span className="text-white">35%</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-dark-400">Governance Weight:</span>
-            <span className="text-white">30%</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-dark-400">Last Updated:</span>
-            <span className="text-white">Real-time</span>
+          <div className="flex space-x-2">
+            <button className="btn-secondary text-sm">
+              View Details
+            </button>
+            <button className="btn-primary text-sm">
+              Compare with Peers
+            </button>
           </div>
         </div>
       </div>

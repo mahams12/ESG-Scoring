@@ -1,7 +1,8 @@
+// src/App.jsx
 import React from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
-import { AppContextProvider } from './context/AppContext';
 import { NotificationContextProvider } from './context/NotificationContext';
+import { ESGContextProvider } from './context/ESGContext';
 import Sidebar from './components/common/Sidebar';
 import Header from './components/common/Header';
 import NotificationToast from './components/common/NotificationToast';
@@ -13,7 +14,7 @@ function App() {
   return (
     <ErrorBoundary>
       <NotificationContextProvider>
-        <AppContextProvider>
+        <ESGContextProvider>
           <Router>
             <div className="flex h-screen bg-dark-950 overflow-hidden">
               {/* Sidebar */}
@@ -36,7 +37,7 @@ function App() {
               <NotificationToast />
             </div>
           </Router>
-        </AppContextProvider>
+        </ESGContextProvider>
       </NotificationContextProvider>
     </ErrorBoundary>
   );
@@ -44,10 +45,8 @@ function App() {
 
 // Development tools
 if (process.env.NODE_ENV === 'development') {
-  // Add development-only features
   App.displayName = 'ESGApp';
   
-  // Hot reload support
   if (module.hot) {
     module.hot.accept();
   }

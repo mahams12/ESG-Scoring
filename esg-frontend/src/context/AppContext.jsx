@@ -1,55 +1,59 @@
-import React, { createContext, useContext, useReducer } from 'react';
+// src/context/AppContext.jsx
+import React, { createContext, useContext, useState, useCallback } from 'react';
 
+// Create the context
 const AppContext = createContext();
 
-const initialState = {
-  user: null,
-  currentAnalysis: null,
-  loading: false,
-  error: null,
-  theme: 'dark'
-};
-
-const appReducer = (state, action) => {
-  switch (action.type) {
-    case 'SET_LOADING':
-      return { ...state, loading: action.payload };
-    case 'SET_ERROR':
-      return { ...state, error: action.payload };
-    case 'SET_CURRENT_ANALYSIS':
-      return { ...state, currentAnalysis: action.payload };
-    case 'CLEAR_ERROR':
-      return { ...state, error: null };
-    default:
-      return state;
-  }
-};
-
+// App provider component
 export const AppContextProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(appReducer, initialState);
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [currentCompany, setCurrentCompany] = useState(null);
+  const [recentAnalyses, setRecentAnalyses] = useState([]);
 
-  const setLoading = (loading) => {
-    dispatch({ type: 'SET_LOADING', payload: loading });
-  };
+  // Loading state management
+  const startLoading = useCallback(() => setLoading(true), []);
+  const stopLoading = useCallback(() => setLoading(false), []);
 
-  const setError = (error) => {
-    dispatch({ type: 'SET_ERROR', payload: error });
-  };
+  // Sidebar state management
+  const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
 
-  const clearError = () => {
-    dispatch({ type: 'CLEAR_ERROR' });
-  };
+  // Company state management
+  const updateCurrentCompany = useCallback((company) => {
+    setCurrentCompany(company);
+    
+    // Add to recent analyses if it's a new analysis
+    if (company && company.ticker) {
+      setRecentAnalyses(prev => {
+        const filtered = prev.filter(item => item.ticker !== company.ticker);
+        return [company, ...filtered].slice(0, 10); // Keep last 10
+      });
+    }
+  }, []);
 
-  const setCurrentAnalysis = (analysis) => {
-    dispatch({ type: 'SET_CURRENT_ANALYSIS', payload: analysis });
-  };
+  // Clear current analysis
+  const clearCurrentCompany = useCallback(() => {
+    setCurrentCompany(null);
+  }, []);
 
   const value = {
-    ...state,
-    setLoading,
-    setError,
-    clearError,
-    setCurrentAnalysis
+    // State
+    loading,
+    user,
+    sidebarOpen,
+    currentCompany,
+    recentAnalyses,
+    
+    // Actions
+    startLoading,
+    stopLoading,
+    setUser,
+    toggleSidebar,
+    setSidebarOpen,
+    updateCurrentCompany,
+    clearCurrentCompany,
+    setRecentAnalyses
   };
 
   return (
@@ -59,10 +63,31 @@ export const AppContextProvider = ({ children }) => {
   );
 };
 
-export const useAppContext = () => {
+// Hook to use the app context
+export const useApp = () => {
   const context = useContext(AppContext);
+  
   if (!context) {
-    throw new Error('useAppContext must be used within AppContextProvider');
+    // Return a no-op implementation if context is not available
+    console.warn('useApp must be used within an AppContextProvider');
+    return {
+      loading: false,
+      user: null,
+      sidebarOpen: true,
+      currentCompany: null,
+      recentAnalyses: [],
+      startLoading: () => {},
+      stopLoading: () => {},
+      setUser: () => {},
+      toggleSidebar: () => {},
+      setSidebarOpen: () => {},
+      updateCurrentCompany: () => {},
+      clearCurrentCompany: () => {},
+      setRecentAnalyses: () => {}
+    };
   }
+  
   return context;
 };
+
+export default AppContext;

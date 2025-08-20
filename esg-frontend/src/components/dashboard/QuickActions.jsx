@@ -1,73 +1,130 @@
 import React from 'react';
+import { Search, TrendingUp, Download, BookOpen, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  PlusIcon, 
-  ChatBubbleLeftRightIcon, 
-  ChartBarIcon, 
-  EyeIcon 
-} from '@heroicons/react/24/outline';
 
-const QuickActions = () => {
+const QuickActions = ({ onCompanySearch, recentCompanies = [] }) => {
   const navigate = useNavigate();
 
-  const actions = [
+  const primaryActions = [
     {
-      title: 'Add Analysis',
-      description: 'Analyze a new company',
-      icon: PlusIcon,
-      iconBg: 'bg-blue-500',
-      onClick: () => navigate('/analysis')
+      title: 'Analyze Company',
+      description: 'Get comprehensive ESG analysis',
+      icon: Search,
+      color: 'blue',
+      action: () => navigate('/analysis')
     },
     {
-      title: 'Chat with AI',
-      description: 'Ask ESG questions or get help',
-      icon: ChatBubbleLeftRightIcon,
-      iconBg: 'bg-purple-500',
-      onClick: () => console.log('Open AI Chat')
+      title: 'Market Trends',
+      description: 'View ESG market insights',
+      icon: TrendingUp,
+      color: 'green',
+      action: () => navigate('/analysis?view=trends')
     },
     {
-      title: 'Generate Report',
-      description: 'Create ESG reports',
-      icon: ChartBarIcon,
-      iconBg: 'bg-green-500',
-      onClick: () => navigate('/reports')
+      title: 'Bulk Analysis',
+      description: 'Analyze multiple companies',
+      icon: Zap,
+      color: 'purple',
+      action: () => navigate('/analysis?mode=bulk')
     },
     {
-      title: 'View Analytics',
-      description: 'Analyze trends and patterns',
-      icon: EyeIcon,
-      iconBg: 'bg-orange-500',
-      onClick: () => navigate('/analytics')
+      title: 'ESG Guide',
+      description: 'Learn about ESG metrics',
+      icon: BookOpen,
+      color: 'orange',
+      action: () => navigate('/analysis?view=guide')
     }
   ];
 
+  const getColorClasses = (color) => {
+    const colors = {
+      blue: 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/20 text-blue-400',
+      green: 'bg-green-500/10 hover:bg-green-500/20 border-green-500/20 text-green-400',
+      purple: 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/20 text-purple-400',
+      orange: 'bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/20 text-orange-400'
+    };
+    return colors[color] || colors.blue;
+  };
+
   return (
-    <div className="card p-6">
-      <h3 className="text-lg font-semibold text-white mb-6">Quick Actions</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {actions.map((action, index) => {
-          const Icon = action.icon;
-          return (
-            <div
-              key={index}
-              className="quick-action-card group"
-              onClick={action.onClick}
-            >
-              <div className="flex items-center space-x-4">
-                <div className={`w-12 h-12 ${action.iconBg} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
-                  <Icon className="w-6 h-6 text-white" />
+    <div className="space-y-6">
+      {/* Primary Actions */}
+      <div>
+        <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {primaryActions.map((action, index) => {
+            const Icon = action.icon;
+            
+            return (
+              <button
+                key={index}
+                onClick={action.action}
+                className={`
+                  p-4 rounded-xl border transition-all text-left group
+                  ${getColorClasses(action.color)}
+                `}
+              >
+                <div className="flex items-start space-x-3">
+                  <div className="p-2 rounded-lg bg-current bg-opacity-20">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium text-white group-hover:text-current transition-colors">
+                      {action.title}
+                    </h4>
+                    <p className="text-sm text-dark-400 mt-1">
+                      {action.description}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-medium text-white group-hover:text-primary-400 transition-colors duration-200">
-                    {action.title}
-                  </h4>
-                  <p className="text-sm text-dark-400 mt-1">{action.description}</p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Recent Companies */}
+      {recentCompanies.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-4">Recently Analyzed</h3>
+          <div className="space-y-2">
+            {recentCompanies.slice(0, 5).map((company, index) => (
+              <button
+                key={index}
+                onClick={() => navigate(`/analysis/${company.ticker}`)}
+                className="w-full flex items-center justify-between p-3 bg-dark-800 hover:bg-dark-700 border border-dark-700 hover:border-dark-600 rounded-lg transition-all group"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-dark-700 rounded-full flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">
+                      {company.ticker.charAt(0)}
+                    </span>
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium text-white group-hover:text-blue-400 transition-colors">
+                      {company.name}
+                    </div>
+                    <div className="text-sm text-dark-400">
+                      {company.ticker} • Score: {company.esgScore}/100
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`text-sm font-medium ${
+                    company.esgScore >= 70 ? 'text-green-400' : 
+                    company.esgScore >= 50 ? 'text-yellow-400' : 'text-red-400'
+                  }`}>
+                    {company.riskLevel}
+                  </div>
+                  <div className="text-xs text-dark-500">
+                    {company.lastAnalyzed}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
