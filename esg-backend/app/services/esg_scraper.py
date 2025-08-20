@@ -31,9 +31,20 @@ class ESGDataScraper:
     
     def __init__(self):
         self.settings = get_settings()
-        self.session = self._create_session()
         self.scraping_repo = DatabaseRepository("esg_scores")
-        self.user_agents = self.settings.scraping.user_agents
+        
+        # Set user_agents with fallback
+        try:
+            self.user_agents = self.settings.scraping.user_agents
+        except AttributeError:
+            # Fallback user agents if settings not available
+            self.user_agents = [
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+            ]
+        
+        self.session = self._create_session()
         
     def _create_session(self) -> requests.Session:
         """Create HTTP session with proper headers"""
@@ -61,10 +72,13 @@ class ESGDataScraper:
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
         
-        driver = webdriver.Chrome(options=chrome_options)
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        
-        return driver
+        try:
+            driver = webdriver.Chrome(options=chrome_options)
+            driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            return driver
+        except Exception as e:
+            logger.warning(f"Failed to create Chrome driver: {str(e)}")
+            return None
     
     async def scrape_all_esg_data(self, ticker: str, company_name: str) -> Dict[str, Any]:
         """
@@ -128,6 +142,9 @@ class ESGDataScraper:
             driver = None
             try:
                 driver = self._get_chrome_driver()
+                if not driver:
+                    raise Exception("Could not create Chrome driver")
+                    
                 driver.get(search_url)
                 
                 # Wait for page to load
@@ -550,7 +567,7 @@ class ESGDataScraper:
         """Get cached ESG data if available and fresh"""
         try:
             cache_cutoff = datetime.utcnow() - timedelta(
-                seconds=self.settings.caching.esg_ratings_ttl
+                seconds=getattr(self.settings.caching, 'esg_ratings_ttl', 1800)
             )
             
             cached_doc = await self.scraping_repo.find_one({
@@ -577,7 +594,7 @@ class ESGDataScraper:
                 "data": data,
                 "scraping_timestamp": data.get("scraping_timestamp", datetime.utcnow()),
                 "expires_at": datetime.utcnow() + timedelta(
-                    seconds=self.settings.caching.esg_ratings_ttl
+                    seconds=getattr(self.settings.caching, 'esg_ratings_ttl', 1800)
                 )
             }
             
@@ -612,9 +629,12 @@ class ESGDataScraper:
 
 
 # Global service instance
-esg_scraper = ESGDataScraper()
+esg_scraper = None
 
 
 def get_esg_scraper() -> ESGDataScraper:
     """Get ESG scraper service instance"""
+    global esg_scraper
+    if esg_scraper is None:
+        esg_scraper = ESGDataScraper()
     return esg_scraper

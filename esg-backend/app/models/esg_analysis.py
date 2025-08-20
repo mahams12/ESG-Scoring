@@ -4,7 +4,7 @@ ESG Analysis data models and schemas
 
 from datetime import datetime
 from typing import Optional, Dict, Any, List, Union
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
 
@@ -113,27 +113,30 @@ class ESGScore(BaseModel):
     confidence_level: float = Field(0.0, ge=0, le=1.0)
     data_quality: DataQuality = DataQuality.FAIR
     
-    @validator('grade', always=True)
-    def calculate_grade(cls, v, values):
+    @field_validator('grade', mode='before')
+    @classmethod
+    def calculate_grade(cls, v, info):
         """Calculate grade based on score"""
-        if 'score' not in values:
+        if v is not None:
             return v
         
-        score = values['score']
-        if score >= 90:
-            return ESGRatingGrade.AAA
-        elif score >= 80:
-            return ESGRatingGrade.AA
-        elif score >= 70:
-            return ESGRatingGrade.A
-        elif score >= 60:
-            return ESGRatingGrade.BBB
-        elif score >= 50:
-            return ESGRatingGrade.BB
-        elif score >= 40:
-            return ESGRatingGrade.B
-        else:
-            return ESGRatingGrade.CCC
+        if hasattr(info, 'data') and 'score' in info.data:
+            score = info.data['score']
+            if score >= 90:
+                return ESGRatingGrade.AAA
+            elif score >= 80:
+                return ESGRatingGrade.AA
+            elif score >= 70:
+                return ESGRatingGrade.A
+            elif score >= 60:
+                return ESGRatingGrade.BBB
+            elif score >= 50:
+                return ESGRatingGrade.BB
+            elif score >= 40:
+                return ESGRatingGrade.B
+            else:
+                return ESGRatingGrade.CCC
+        return v
 
 
 class NewsArticle(BaseModel):
@@ -153,10 +156,10 @@ class ESGControversy(BaseModel):
     """ESG-related controversy"""
     title: str
     description: str
-    severity: str = Field(..., regex="^(LOW|MEDIUM|HIGH|CRITICAL)$")
+    severity: str = Field(..., pattern="^(LOW|MEDIUM|HIGH|CRITICAL)$")
     category: str  # Environmental, Social, Governance
     date: datetime
-    status: str = Field(..., regex="^(ONGOING|RESOLVED|MONITORING)$")
+    status: str = Field(..., pattern="^(ONGOING|RESOLVED|MONITORING)$")
     financial_impact: Optional[float] = None
     sources: List[str] = []
 
@@ -227,10 +230,11 @@ class ESGAnalysis(BaseModel):
     analysis_version: str = "2.0"
     analyst_notes: Optional[str] = None
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat()
         }
+    }
 
 
 class ESGAnalysisRequest(BaseModel):
@@ -240,9 +244,10 @@ class ESGAnalysisRequest(BaseModel):
     include_ai_insights: bool = Field(True, description="Include AI-generated insights")
     include_benchmarks: bool = Field(True, description="Include benchmark comparison")
     include_news: bool = Field(True, description="Include recent news analysis")
-    analysis_depth: str = Field("comprehensive", regex="^(basic|standard|comprehensive)$")
+    analysis_depth: str = Field("comprehensive", pattern="^(basic|standard|comprehensive)$")
     
-    @validator('ticker')
+    @field_validator('ticker')
+    @classmethod
     def ticker_must_be_valid(cls, v):
         return v.upper().strip()
 
@@ -252,7 +257,7 @@ class ESGTrendData(BaseModel):
     ticker: str
     metric: str
     time_series: List[Dict[str, Union[datetime, float]]]
-    trend_direction: str = Field(..., regex="^(IMPROVING|DECLINING|STABLE|VOLATILE)$")
+    trend_direction: str = Field(..., pattern="^(IMPROVING|DECLINING|STABLE|VOLATILE)$")
     trend_strength: float = Field(..., ge=0, le=1)
     correlation_with_performance: Optional[float] = Field(None, ge=-1, le=1)
 
@@ -275,8 +280,8 @@ class ESGPortfolioAnalysis(BaseModel):
 class ESGAlert(BaseModel):
     """ESG-related alert"""
     ticker: str
-    alert_type: str = Field(..., regex="^(SCORE_DECLINE|CONTROVERSY|REGULATORY|NEWS)$")
-    severity: str = Field(..., regex="^(LOW|MEDIUM|HIGH|CRITICAL)$")
+    alert_type: str = Field(..., pattern="^(SCORE_DECLINE|CONTROVERSY|REGULATORY|NEWS)$")
+    severity: str = Field(..., pattern="^(LOW|MEDIUM|HIGH|CRITICAL)$")
     title: str
     description: str
     triggered_at: datetime = Field(default_factory=datetime.utcnow)
@@ -314,13 +319,14 @@ class ESGResponse(BaseModel):
 
 class ESGBulkAnalysisRequest(BaseModel):
     """Bulk ESG analysis request"""
-    tickers: List[str] = Field(..., max_items=50, description="List of ticker symbols")
-    analysis_depth: str = Field("standard", regex="^(basic|standard|comprehensive)$")
+    tickers: List[str] = Field(..., max_length=50, description="List of ticker symbols")
+    analysis_depth: str = Field("standard", pattern="^(basic|standard|comprehensive)$")
     include_ai_insights: bool = True
     include_benchmarks: bool = True
     parallel_processing: bool = True
     
-    @validator('tickers')
+    @field_validator('tickers')
+    @classmethod
     def validate_tickers(cls, v):
         if not v:
             raise ValueError('At least one ticker must be provided')
@@ -443,19 +449,19 @@ def calculate_data_quality_score(
     available_metrics = 0
     
     if environmental_metrics:
-        env_fields = [f for f in environmental_metrics.__fields__ 
+        env_fields = [f for f in environmental_metrics.model_fields 
                      if f not in ['data_sources', 'last_updated']]
         available_metrics += sum(1 for field in env_fields 
                                if getattr(environmental_metrics, field) is not None)
     
     if social_metrics:
-        social_fields = [f for f in social_metrics.__fields__ 
+        social_fields = [f for f in social_metrics.model_fields 
                         if f not in ['data_sources', 'last_updated']]
         available_metrics += sum(1 for field in social_fields 
                                if getattr(social_metrics, field) is not None)
     
     if governance_metrics:
-        gov_fields = [f for f in governance_metrics.__fields__ 
+        gov_fields = [f for f in governance_metrics.model_fields 
                      if f not in ['data_sources', 'last_updated']]
         available_metrics += sum(1 for field in gov_fields 
                                if getattr(governance_metrics, field) is not None)

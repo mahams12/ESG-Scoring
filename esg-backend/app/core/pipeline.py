@@ -1,3 +1,4 @@
+# pipeline.py
 """
 Main ESG analysis pipeline orchestrating all components
 """

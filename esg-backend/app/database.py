@@ -9,32 +9,39 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncI
 from pymongo import IndexModel, ASCENDING, DESCENDING
 from loguru import logger
 
-from app.config import get_settings
-
 
 class DatabaseManager:
     """MongoDB database manager with async support"""
     
     def __init__(self):
-        self.settings = get_settings()
         self.client: Optional[AsyncIOMotorClient] = None
         self.database: Optional[AsyncIOMotorDatabase] = None
         self.collections: Dict[str, AsyncIOMotorCollection] = {}
+        self._settings = None
+
+    def _get_settings(self):
+        """Lazy load settings to avoid circular imports"""
+        if self._settings is None:
+            from app.config import get_settings
+            self._settings = get_settings()
+        return self._settings
 
     async def connect(self):
         """Connect to MongoDB"""
         try:
+            settings = self._get_settings()
+            
             self.client = AsyncIOMotorClient(
-                self.settings.mongodb_url,
-                maxPoolSize=self.settings.database.max_pool_size,
-                minPoolSize=self.settings.database.min_pool_size,
-                maxIdleTimeMS=self.settings.database.max_idle_time
+                settings.mongodb_url,
+                maxPoolSize=settings.database.max_pool_size,
+                minPoolSize=settings.database.min_pool_size,
+                maxIdleTimeMS=settings.database.max_idle_time
             )
             
             # Verify connection
             await self.client.admin.command('ismaster')
             
-            self.database = self.client[self.settings.database.database_name]
+            self.database = self.client[settings.database.database_name]
             
             # Initialize collections
             await self._initialize_collections()
@@ -42,7 +49,7 @@ class DatabaseManager:
             # Create indexes
             await self._create_indexes()
             
-            logger.info(f"Connected to MongoDB database: {self.settings.database.database_name}")
+            logger.info(f"Connected to MongoDB database: {settings.database.database_name}")
             
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {str(e)}")
@@ -56,7 +63,8 @@ class DatabaseManager:
 
     async def _initialize_collections(self):
         """Initialize database collections"""
-        collection_names = self.settings.get_collection_names()
+        settings = self._get_settings()
+        collection_names = settings.get_collection_names()
         
         for key, name in collection_names.items():
             self.collections[key] = self.database[name]
@@ -317,20 +325,26 @@ class DatabaseManager:
             return {}
 
 
-# Global database manager instance
-db_manager = DatabaseManager()
+# Global database manager instance - initialized without settings
+_db_manager = None
 
 
 async def get_database() -> DatabaseManager:
     """Get database manager instance"""
-    if not db_manager.client:
-        await db_manager.connect()
-    return db_manager
+    global _db_manager
+    if _db_manager is None:
+        _db_manager = DatabaseManager()
+    
+    if not _db_manager.client:
+        await _db_manager.connect()
+    return _db_manager
 
 
 async def close_database():
     """Close database connection"""
-    await db_manager.disconnect()
+    global _db_manager
+    if _db_manager:
+        await _db_manager.disconnect()
 
 
 class DatabaseRepository:
@@ -338,17 +352,22 @@ class DatabaseRepository:
     
     def __init__(self, collection_name: str):
         self.collection_name = collection_name
-        self.db_manager = db_manager
+
+    async def _get_db_manager(self) -> DatabaseManager:
+        """Get database manager instance"""
+        return await get_database()
 
     async def create(self, document: Dict[str, Any]) -> str:
         """Create a new document"""
-        return await self.db_manager.insert_document(self.collection_name, document)
+        db_manager = await self._get_db_manager()
+        return await db_manager.insert_document(self.collection_name, document)
 
     async def find_by_id(self, doc_id: str) -> Optional[Dict[str, Any]]:
         """Find document by ID"""
         from bson import ObjectId
         try:
-            return await self.db_manager.find_document(
+            db_manager = await self._get_db_manager()
+            return await db_manager.find_document(
                 self.collection_name, 
                 {"_id": ObjectId(doc_id)}
             )
@@ -357,7 +376,8 @@ class DatabaseRepository:
 
     async def find_one(self, filter_dict: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Find one document by filter"""
-        return await self.db_manager.find_document(self.collection_name, filter_dict)
+        db_manager = await self._get_db_manager()
+        return await db_manager.find_document(self.collection_name, filter_dict)
 
     async def find_many(
         self, 
@@ -366,7 +386,8 @@ class DatabaseRepository:
         limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """Find multiple documents"""
-        return await self.db_manager.find_documents(
+        db_manager = await self._get_db_manager()
+        return await db_manager.find_documents(
             self.collection_name, 
             filter_dict, 
             sort, 
@@ -379,7 +400,8 @@ class DatabaseRepository:
         update_dict: Dict[str, Any]
     ) -> bool:
         """Update one document"""
-        return await self.db_manager.update_document(
+        db_manager = await self._get_db_manager()
+        return await db_manager.update_document(
             self.collection_name, 
             filter_dict, 
             update_dict
@@ -391,7 +413,8 @@ class DatabaseRepository:
         update_dict: Dict[str, Any]
     ) -> bool:
         """Update or insert document"""
-        return await self.db_manager.update_document(
+        db_manager = await self._get_db_manager()
+        return await db_manager.update_document(
             self.collection_name, 
             filter_dict, 
             update_dict, 
@@ -400,12 +423,15 @@ class DatabaseRepository:
 
     async def delete_one(self, filter_dict: Dict[str, Any]) -> bool:
         """Delete one document"""
-        return await self.db_manager.delete_document(self.collection_name, filter_dict)
+        db_manager = await self._get_db_manager()
+        return await db_manager.delete_document(self.collection_name, filter_dict)
 
     async def count(self, filter_dict: Dict[str, Any] = None) -> int:
         """Count documents"""
-        return await self.db_manager.count_documents(self.collection_name, filter_dict)
+        db_manager = await self._get_db_manager()
+        return await db_manager.count_documents(self.collection_name, filter_dict)
 
     async def aggregate(self, pipeline: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Run aggregation pipeline"""
-        return await self.db_manager.aggregate_documents(self.collection_name, pipeline)
+        db_manager = await self._get_db_manager()
+        return await db_manager.aggregate_documents(self.collection_name, pipeline)

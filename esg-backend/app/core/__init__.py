@@ -1,3 +1,4 @@
+# _init_.py
 """
 Core business logic for ESG Investment Research System
 """

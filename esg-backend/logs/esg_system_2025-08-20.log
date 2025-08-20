@@ -1,0 +1,46 @@
+2025-08-20 13:31:31.662 | INFO     | __main__:<module>:305 - Starting ESG Investment Research System in development mode
+2025-08-20 13:31:32.002 | INFO     | app.main:lifespan:32 - Starting ESG Investment Research System...
+2025-08-20 13:31:38.119 | INFO     | app.database:_initialize_collections:72 - Initialized 5 collections
+2025-08-20 13:31:38.780 | INFO     | app.database:_create_indexes:114 - Database indexes created successfully
+2025-08-20 13:31:38.783 | INFO     | app.database:connect:52 - Connected to MongoDB database: esg_research
+2025-08-20 13:31:38.785 | INFO     | app.main:lifespan:38 - Database connection established
+2025-08-20 13:31:38.863 | INFO     | app.main:lifespan:52 - All services initialized successfully
+2025-08-20 13:34:35.951 | INFO     | app.main:log_requests:123 - Request: GET http://localhost:8000/
+2025-08-20 13:34:35.952 | INFO     | app.main:log_requests:130 - Response: 200 - 0.99ms
+2025-08-20 13:34:36.412 | INFO     | app.main:log_requests:123 - Request: GET http://localhost:8000/favicon.ico
+2025-08-20 13:34:36.414 | INFO     | app.main:log_requests:130 - Response: 404 - 1.91ms
+2025-08-20 13:37:32.873 | INFO     | app.main:log_requests:123 - Request: GET http://localhost:8000/docs
+2025-08-20 13:37:32.878 | INFO     | app.main:log_requests:130 - Response: 404 - 4.98ms
+2025-08-20 13:38:01.129 | INFO     | app.main:log_requests:123 - Request: GET http://localhost:8000/api/v1/health
+2025-08-20 13:38:01.141 | INFO     | app.main:log_requests:130 - Response: 307 - 12.34ms
+2025-08-20 13:38:01.162 | INFO     | app.main:log_requests:123 - Request: GET http://localhost:8000/api/v1/health/
+2025-08-20 13:38:08.706 | INFO     | app.main:log_requests:130 - Response: 200 - 7544.46ms
+2025-08-20 13:38:37.149 | INFO     | app.main:log_requests:123 - Request: GET http://localhost:8000/api/v1/info
+2025-08-20 13:38:37.154 | INFO     | app.main:log_requests:130 - Response: 200 - 5.51ms
+2025-08-20 13:41:55.412 | INFO     | app.main:lifespan:62 - Shutting down ESG Investment Research System...
+2025-08-20 13:41:55.484 | INFO     | app.database:disconnect:62 - Disconnected from MongoDB
+2025-08-20 13:41:55.485 | INFO     | app.main:lifespan:66 - Database connection closed
+2025-08-20 13:42:11.437 | INFO     | __main__:<module>:624 - Starting ESG Investment Research System in development mode
+2025-08-20 13:42:11.439 | INFO     | __main__:run_development_server:599 - 🚀 Starting server on http://0.0.0.0:8000
+2025-08-20 13:42:11.440 | INFO     | __main__:run_development_server:600 - 📚 API Documentation: http://localhost:8000/docs
+2025-08-20 13:42:11.441 | INFO     | __main__:run_development_server:601 - 🔍 Alternative Docs: http://localhost:8000/redoc
+2025-08-20 13:42:11.442 | INFO     | __main__:run_development_server:602 - ❤️  Health Check: http://localhost:8000/api/v1/health
+2025-08-20 13:42:11.557 | INFO     | app.main:create_application:387 - Debug mode: False (type: <class 'bool'>)
+2025-08-20 13:42:11.558 | INFO     | app.main:create_application:388 - Environment: development
+2025-08-20 13:42:11.648 | INFO     | app.main:lifespan:341 - Starting ESG Investment Research System...
+2025-08-20 13:42:18.209 | INFO     | app.database:_initialize_collections:72 - Initialized 5 collections
+2025-08-20 13:42:18.659 | INFO     | app.database:_create_indexes:114 - Database indexes created successfully
+2025-08-20 13:42:18.661 | INFO     | app.database:connect:52 - Connected to MongoDB database: esg_research
+2025-08-20 13:42:18.663 | INFO     | app.main:lifespan:347 - Database connection established
+2025-08-20 13:42:18.738 | INFO     | app.main:lifespan:361 - All services initialized successfully
+2025-08-20 13:42:58.494 | INFO     | app.main:log_requests:436 - Request: GET http://localhost:8000/docs
+2025-08-20 13:42:58.499 | INFO     | app.main:log_requests:443 - Response: 200 - 4.99ms
+2025-08-20 13:42:59.298 | INFO     | app.main:log_requests:436 - Request: GET http://localhost:8000/openapi.json
+2025-08-20 13:42:59.646 | INFO     | app.main:log_requests:443 - Response: 200 - 347.96ms
+2025-08-20 13:43:50.557 | INFO     | app.main:log_requests:436 - Request: GET http://localhost:8000/api/v1/health/
+2025-08-20 13:43:59.500 | INFO     | app.main:log_requests:443 - Response: 200 - 8943.33ms
+2025-08-20 13:44:27.551 | INFO     | app.main:log_requests:436 - Request: GET http://localhost:8000/api/v1/info
+2025-08-20 13:44:27.558 | INFO     | app.main:log_requests:443 - Response: 200 - 5.98ms
+2025-08-20 13:51:13.242 | INFO     | app.main:lifespan:371 - Shutting down ESG Investment Research System...
+2025-08-20 13:51:13.324 | INFO     | app.database:disconnect:62 - Disconnected from MongoDB
+2025-08-20 13:51:13.324 | INFO     | app.main:lifespan:375 - Database connection closed

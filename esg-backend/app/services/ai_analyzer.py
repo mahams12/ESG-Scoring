@@ -5,7 +5,7 @@ AI-powered ESG analysis engine using OpenAI GPT-4
 import asyncio
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timedelta  # Added timedelta import
 from typing import Dict, Any, List, Optional, Tuple
 from loguru import logger
 import openai
@@ -540,9 +540,12 @@ class AIAnalysisEngine:
 
 
 # Global service instance
-ai_analyzer = AIAnalysisEngine()
+ai_analyzer = None
 
 
 def get_ai_analyzer() -> AIAnalysisEngine:
     """Get AI analyzer service instance"""
+    global ai_analyzer
+    if ai_analyzer is None:
+        ai_analyzer = AIAnalysisEngine()
     return ai_analyzer

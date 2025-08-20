@@ -91,7 +91,7 @@ class CompanyValidationService:
             validation_tasks = [
                 self._validate_with_yahoo_finance(ticker),
                 self._validate_with_fmp(ticker),
-                self._validate_with_iex(ticker)
+                self._validate_with_alphavantage(ticker)
             ]
             
             # Run validations concurrently
@@ -260,49 +260,76 @@ class CompanyValidationService:
                 "error": str(e)
             }
     
-    async def _validate_with_iex(self, ticker: str) -> Dict[str, Any]:
-        """Validate company using IEX Cloud API"""
+    async def _validate_with_alphavantage(self, ticker: str) -> Dict[str, Any]:
+        """Validate company using Alpha Vantage API"""
         try:
-            url = f"{self.settings.api.iex_base_url}/stock/{ticker}/company"
-            params = {"token": self.settings.api.iex_api_key}
+            # Company overview endpoint
+            url = f"{self.settings.api.alphavantage_base_url}/query"
+            params = {
+                "function": "OVERVIEW",
+                "symbol": ticker,
+                "apikey": self.settings.api.alphavantage_api_key
+            }
             
             response = self.session.get(url, params=params, timeout=15)
             response.raise_for_status()
             
             data = response.json()
             
-            if not data:
+            # Check if we got valid data
+            if not data or "Symbol" not in data or data.get("Symbol") != ticker:
                 return {
-                    "source": "iex_cloud",
+                    "source": "alpha_vantage",
                     "success": False,
                     "error": "No company data found"
                 }
             
+            # Extract company information
             company_info = {
-                "name": data.get("companyName", ""),
-                "sector": data.get("sector"),
-                "industry": data.get("industry"),
-                "employees": data.get("employees"),
-                "website": data.get("website"),
-                "description": data.get("description"),
-                "exchange": data.get("exchange"),
-                "headquarters": f"{data.get('city', '')}, {data.get('state', '')} {data.get('country', '')}".strip(", ")
+                "name": data.get("Name", ""),
+                "sector": data.get("Sector"),
+                "industry": data.get("Industry"),
+                "market_cap": self._safe_convert_to_float(data.get("MarketCapitalization")),
+                "employees": self._safe_convert_to_int(data.get("FullTimeEmployees")),
+                "description": data.get("Description"),
+                "exchange": data.get("Exchange"),
+                "country": data.get("Country"),
+                "currency": data.get("Currency"),
+                "headquarters": f"{data.get('Address', '')}, {data.get('Country', '')}".strip(", ")
             }
             
             return {
-                "source": "iex_cloud",
+                "source": "alpha_vantage",
                 "success": True,
                 "company_info": company_info,
-                "confidence": 0.8
+                "confidence": 0.85
             }
             
         except Exception as e:
-            logger.warning(f"IEX validation failed for {ticker}: {str(e)}")
+            logger.warning(f"Alpha Vantage validation failed for {ticker}: {str(e)}")
             return {
-                "source": "iex_cloud",
+                "source": "alpha_vantage",
                 "success": False,
                 "error": str(e)
             }
+    
+    def _safe_convert_to_float(self, value: str) -> Optional[float]:
+        """Safely convert string to float"""
+        if not value or value == "None":
+            return None
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
+    
+    def _safe_convert_to_int(self, value: str) -> Optional[int]:
+        """Safely convert string to int"""
+        if not value or value == "None":
+            return None
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return None
     
     async def _consolidate_validation_results(
         self, 
@@ -375,7 +402,7 @@ class CompanyValidationService:
         source_priority = {
             "financial_modeling_prep": 3,
             "yahoo_finance": 2,
-            "iex_cloud": 1
+            "alpha_vantage": 1
         }
         
         # Sort results by priority

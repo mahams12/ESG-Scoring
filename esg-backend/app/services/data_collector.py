@@ -67,7 +67,7 @@ class RealTimeDataCollector:
                 self._collect_financial_data(ticker),
                 self._collect_market_data(ticker),
                 self._collect_fundamental_ratios(ticker),
-                self._collect_esg_baseline_data(ticker)
+                self._collect_alphavantage_data(ticker)
             ]
             
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -76,7 +76,7 @@ class RealTimeDataCollector:
             financial_data = results[0] if not isinstance(results[0], Exception) else {}
             market_data = results[1] if not isinstance(results[1], Exception) else {}
             ratios_data = results[2] if not isinstance(results[2], Exception) else {}
-            esg_baseline = results[3] if not isinstance(results[3], Exception) else {}
+            alphavantage_data = results[3] if not isinstance(results[3], Exception) else {}
             
             # Combine all data
             combined_data = {
@@ -85,7 +85,7 @@ class RealTimeDataCollector:
                 "financial_data": financial_data,
                 "market_data": market_data,
                 "financial_ratios": ratios_data,
-                "esg_baseline": esg_baseline,
+                "alphavantage_data": alphavantage_data,
                 "data_sources": self._get_successful_sources(results),
                 "processing_time_ms": (datetime.utcnow() - start_time).total_seconds() * 1000
             }
@@ -296,41 +296,102 @@ class RealTimeDataCollector:
                 "error": str(e)
             }
     
-    async def _collect_esg_baseline_data(self, ticker: str) -> Dict[str, Any]:
-        """Collect baseline ESG data that can be derived from financial statements"""
+    async def _collect_alphavantage_data(self, ticker: str) -> Dict[str, Any]:
+        """Collect additional financial data from Alpha Vantage"""
         try:
-            # This would collect publicly available ESG-related metrics
-            # that can be derived from financial statements and public filings
-            
-            baseline_data = {
-                "environmental": {
-                    "data_availability": "limited",
-                    "metrics_source": "derived_from_financials"
-                },
-                "social": {
-                    "data_availability": "limited",
-                    "metrics_source": "derived_from_financials"
-                },
-                "governance": {
-                    "data_availability": "limited", 
-                    "metrics_source": "derived_from_financials"
-                }
+            # Get company overview
+            overview_url = f"{self.settings.api.alphavantage_base_url}/query"
+            overview_params = {
+                "function": "OVERVIEW",
+                "symbol": ticker,
+                "apikey": self.settings.api.alphavantage_api_key
             }
             
+            # Get daily adjusted prices for additional metrics
+            price_url = f"{self.settings.api.alphavantage_base_url}/query"
+            price_params = {
+                "function": "TIME_SERIES_DAILY_ADJUSTED",
+                "symbol": ticker,
+                "apikey": self.settings.api.alphavantage_api_key,
+                "outputsize": "compact"
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                tasks = [
+                    session.get(overview_url, params=overview_params),
+                    session.get(price_url, params=price_params)
+                ]
+                
+                responses = await asyncio.gather(*tasks)
+                
+                overview_data = await responses[0].json() if responses[0].status == 200 else {}
+                price_data = await responses[1].json() if responses[1].status == 200 else {}
+            
+            # Extract additional financial metrics
+            alphavantage_metrics = {}
+            
+            if overview_data and "Symbol" in overview_data:
+                alphavantage_metrics.update({
+                    "market_cap": self._safe_float_convert(overview_data.get("MarketCapitalization")),
+                    "enterprise_value": self._safe_float_convert(overview_data.get("EnterpriseValue")),
+                    "pe_ratio": self._safe_float_convert(overview_data.get("PERatio")),
+                    "peg_ratio": self._safe_float_convert(overview_data.get("PEGRatio")),
+                    "book_value": self._safe_float_convert(overview_data.get("BookValue")),
+                    "dividend_per_share": self._safe_float_convert(overview_data.get("DividendPerShare")),
+                    "dividend_yield": self._safe_float_convert(overview_data.get("DividendYield")),
+                    "eps": self._safe_float_convert(overview_data.get("EPS")),
+                    "revenue_per_share": self._safe_float_convert(overview_data.get("RevenuePerShareTTM")),
+                    "profit_margin": self._safe_float_convert(overview_data.get("ProfitMargin")),
+                    "operating_margin": self._safe_float_convert(overview_data.get("OperatingMarginTTM")),
+                    "return_on_assets": self._safe_float_convert(overview_data.get("ReturnOnAssetsTTM")),
+                    "return_on_equity": self._safe_float_convert(overview_data.get("ReturnOnEquityTTM")),
+                    "revenue": self._safe_float_convert(overview_data.get("RevenueTTM")),
+                    "gross_profit": self._safe_float_convert(overview_data.get("GrossProfitTTM")),
+                    "ebitda": self._safe_float_convert(overview_data.get("EBITDA")),
+                    "quarter_ending": overview_data.get("LatestQuarter"),
+                    "52_week_high": self._safe_float_convert(overview_data.get("52WeekHigh")),
+                    "52_week_low": self._safe_float_convert(overview_data.get("52WeekLow")),
+                    "50_day_moving_avg": self._safe_float_convert(overview_data.get("50DayMovingAverage")),
+                    "200_day_moving_avg": self._safe_float_convert(overview_data.get("200DayMovingAverage")),
+                    "shares_outstanding": self._safe_float_convert(overview_data.get("SharesOutstanding")),
+                    "beta": self._safe_float_convert(overview_data.get("Beta"))
+                })
+            
+            # Process price data for additional insights
+            if price_data and "Time Series (Daily)" in price_data:
+                time_series = price_data["Time Series (Daily)"]
+                if time_series:
+                    # Get recent trading data
+                    recent_dates = sorted(time_series.keys(), reverse=True)[:5]
+                    recent_volumes = [
+                        int(time_series[date]["6. volume"]) 
+                        for date in recent_dates
+                    ]
+                    alphavantage_metrics["avg_volume_5d"] = sum(recent_volumes) / len(recent_volumes)
+            
             return {
-                "source": "baseline_esg",
+                "source": "alpha_vantage",
                 "success": True,
-                "data": baseline_data,
+                "metrics": alphavantage_metrics,
                 "last_updated": datetime.utcnow()
             }
             
         except Exception as e:
-            logger.warning(f"Baseline ESG data collection failed for {ticker}: {str(e)}")
+            logger.warning(f"Alpha Vantage data collection failed for {ticker}: {str(e)}")
             return {
-                "source": "baseline_esg",
+                "source": "alpha_vantage",
                 "success": False,
                 "error": str(e)
             }
+    
+    def _safe_float_convert(self, value) -> Optional[float]:
+        """Safely convert value to float"""
+        if value is None or value == "None" or value == "":
+            return None
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
     
     def _extract_financial_metrics(
         self, 
@@ -684,17 +745,21 @@ class RealTimeDataCollector:
         except:
             health_status["financial_modeling_prep"] = False
         
-        # Test IEX Cloud
+        # Test Alpha Vantage
         try:
-            test_url = f"{self.settings.api.iex_base_url}/stock/AAPL/quote"
+            test_url = f"{self.settings.api.alphavantage_base_url}/query"
             response = self.session.get(
-                test_url,
-                params={"token": self.settings.api.iex_api_key},
+                test_url, 
+                params={
+                    "function": "GLOBAL_QUOTE",
+                    "symbol": "AAPL",
+                    "apikey": self.settings.api.alphavantage_api_key
+                },
                 timeout=10
             )
-            health_status["iex_cloud"] = response.status_code == 200
+            health_status["alpha_vantage"] = response.status_code == 200
         except:
-            health_status["iex_cloud"] = False
+            health_status["alpha_vantage"] = False
         
         return health_status
 

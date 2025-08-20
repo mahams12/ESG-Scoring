@@ -1,3 +1,4 @@
+# models _init_.py
 """
 Data models for ESG Investment Research System
 """
